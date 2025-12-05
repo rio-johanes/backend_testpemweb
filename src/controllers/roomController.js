@@ -11,22 +11,17 @@ const getRooms = async (req, res) => {
     }
 };
 
-// ADD ROOM (UPDATED: SUPPORT FOTO)
+// ADD ROOM (UPDATED: MENDUKUNG UPLOAD CLOUDINARY)
 const addRoom = async (req, res) => {
     try {
-        // --- PERUBAHAN DIMULAI DI SINI ---
-        // Ganti URL lokal dengan variabel lingkungan BASE_URL
-        const BASE_URL = process.env.BASE_URL; 
+        // Logika ini sudah benar karena ia mengambil URL lengkap
+        // dari req.file.path, yang diisi oleh Cloudinary Storage
+       const imagePath = req.file ? req.file.path : null
         
-        // 1. Cek apakah ada file yang diupload lewat Multer?
-        // Kalau ada, buat URL-nya menggunakan BASE_URL.
-       const imagePath = req.file ? `${BASE_URL}/uploads/${req.file.filename}` : null
-        // --- PERUBAHAN SELESAI DI SINI ---
-
         // 2. Gabungkan data teks (dari req.body) dengan link gambar
         const roomData = {
             ...req.body,
-            image_url: imagePath // Tambahkan properti ini agar disimpan service
+            image_url: imagePath // Simpan URL Cloudinary/GCS ke database
         };
 
         // 3. Kirim data lengkap ke Service
