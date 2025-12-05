@@ -25,7 +25,7 @@ const storage = new CloudinaryStorage({
         // Mengubah format file yang diupload menjadi webp (lebih hemat bandwidth)
         format: async (req, file) => 'webp', 
         // Nama file unik di Cloudinary
-        public_id: (req, file) => ${Date.now()}-${file.originalname.split('.')[0]},
+        public_id: (req, file) =>`${Date.now()}-${file.originalname.split('.')[0]}`,
     },
 });
 
@@ -41,3 +41,4 @@ router.delete('/:id', roomController.deleteRoom);
 router.put('/:id', roomController.editRoom);
 
 module.exports = router;
+
