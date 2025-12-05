@@ -3,72 +3,40 @@ const express = require('express');
 const router = express.Router();
 const roomController = require('../controllers/roomController');
 const multer = require('multer');
-// Impor library GCS
-const { Storage } = require('@google-cloud/storage');
+
+// --- Perubahan Kunci Cloudinary Dimulai Di Sini ---
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 const path = require('path');
+const fs = require('fs'); 
 
-// 1. Inisialisasi Google Cloud Storage
-// GCS akan secara otomatis menggunakan kredensial dari GOOGLE_APPLICATION_CREDENTIALS
-const storage = new Storage();
-const bucketName = process.env.GCS_BUCKET_NAME;
-
-// 2. Konfigurasi Multer: Menyimpan file di memory (buffer)
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 5 * 1024 * 1024, // Batas 5MB
-    }
+// Konfigurasi Cloudinary menggunakan variabel lingkungan
+cloudinary.config({
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.API_KEY,
+    api_secret: process.env.API_SECRET,
 });
 
-// 3. Middleware Upload ke GCS
-const uploadToGCS = async (req, res, next) => {
-    if (!req.file || !bucketName) {
-        return next(); // Lanjut jika tidak ada file atau bucket name
-    }
+// Konfigurasi Penyimpanan Cloudinary
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'grandluxe_rooms', // Tentukan folder di Cloudinary
+        // Mengubah format file yang diupload menjadi webp (lebih hemat bandwidth)
+        format: async (req, file) => 'webp', 
+        // Nama file unik di Cloudinary
+        public_id: (req, file) => ${Date.now()}-${file.originalname.split('.')[0]},
+    },
+});
 
-    try {
-        const file = req.file;
-        // Nama file unik di GCS: Timestamp + Ekstensi asli
-        const fileName = rooms/${Date.now()}${path.extname(file.originalname)};
-        
-        const gcsFile = storage.bucket(bucketName).file(fileName);
-        
-        // Mulai proses upload
-        const stream = gcsFile.createWriteStream({
-            metadata: {
-                contentType: file.mimetype,
-                // Tambahkan header cache control jika perlu
-                cacheControl: 'public, max-age=31536000',
-            },
-            resumable: false, 
-        });
+const upload = multer({ storage: storage });
+// --- Perubahan Kunci Cloudinary Selesai Di Sini ---
 
-        stream.on('error', (err) => {
-            console.error('GCS Upload Error:', err);
-            next(new Error("Gagal mengunggah file ke Cloud Storage"));
-        });
-
-        stream.on('finish', () => {
-            // Dapatkan URL publik dari GCS
-            const publicUrl = https://storage.googleapis.com/${bucketName}/${gcsFile.name};
-            
-            // Simpan URL publik ke req.file agar bisa diambil di controller
-            req.file.path = publicUrl; 
-            next();
-        });
-
-        // Kirim buffer file ke GCS
-        stream.end(file.buffer);
-
-    } catch (error) {
-        next(error);
-    }
-};
 
 // Definisi Route
 router.get('/', roomController.getRooms);
-// Urutan: Upload ke Memory -> Upload ke GCS -> Lanjut ke Controller
-router.post('/', upload.single('image'), uploadToGCS, roomController.addRoom); 
+// Middleware upload.single('image') sekarang mengunggah langsung ke Cloudinary
+router.post('/', upload.single('image'), roomController.addRoom);
 router.delete('/:id', roomController.deleteRoom);
 router.put('/:id', roomController.editRoom);
 
